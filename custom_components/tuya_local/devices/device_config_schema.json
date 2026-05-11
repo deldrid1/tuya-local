@@ -101,6 +101,20 @@
                         "enum": ["auto", "box", "slider"],
                         "description": "The display mode of number entities (e.g., box, slider). Usually the default of auto is preferable, this should only be overridden with good reason (not personal preference)."
                     },
+                    "source": {
+                        "type": "string",
+                        "enum": ["cloud_signal_strength"],
+                        "description": "Optional non-DP source for an entity. cloud_signal_strength reads the latest Wi-Fi RSSI from Tuya cloud device semaphore logs."
+                    },
+                    "unit": {
+                        "type": "string",
+                        "description": "The unit of measurement for a non-DP backed entity."
+                    },
+                    "state_class": {
+                        "type": "string",
+                        "enum": ["measurement", "measurement_angle", "total", "total_increasing"],
+                        "description": "Optional state class for non-DP backed sensor entities."
+                    },
                     "deprecated": {
                         "type": "string",
                         "description": "if the entity is deprecated and should not be used for new setups, a string to output in the deprecation message in the log pointing the user to the replacement. This should not be used in new configs, but can be used in later modifications where a better representation of the entity is introduced. A comment with the date should be added when setting this to help with future cleanup."
@@ -451,7 +465,11 @@
                         }
                     }
                 },
-                "required": ["entity", "dps"],
+                "required": ["entity"],
+                "anyOf": [
+                    {"required": ["dps"]},
+                    {"required": ["source"]}
+                ],
                 "additionalProperties": false
             }
         },

@@ -3,6 +3,7 @@ Setup for different kinds of Tuya sensors
 """
 
 import logging
+from datetime import timedelta
 
 from homeassistant.components.sensor import (
     STATE_CLASSES,
@@ -16,6 +17,9 @@ from .helpers.config import async_tuya_setup_platform
 from .helpers.device_config import TuyaEntityConfig
 
 _LOGGER = logging.getLogger(__name__)
+
+SCAN_INTERVAL = timedelta(minutes=15)
+CLOUD_SIGNAL_STRENGTH_SOURCE = "cloud_signal_strength"
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -41,12 +45,33 @@ class TuyaLocalSensor(TuyaLocalEntity, SensorEntity):
         """
         super().__init__()
         dps_map = self._init_begin(device, config)
+        self._source = config.source
+        self._attr_native_value = None
         self._sensor_dps = dps_map.pop("sensor", None)
-        if self._sensor_dps is None:
+        if self._source != CLOUD_SIGNAL_STRENGTH_SOURCE and self._sensor_dps is None:
             raise AttributeError(f"{config.config_id} is missing a sensor dps")
         self._unit_dps = dps_map.pop("unit", None)
 
         self._init_end(dps_map)
+
+    @property
+    def should_poll(self):
+        if self._source == CLOUD_SIGNAL_STRENGTH_SOURCE:
+            return True
+        return super().should_poll
+
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        if self._source == CLOUD_SIGNAL_STRENGTH_SOURCE:
+            self.async_schedule_update_ha_state(True)
+
+    async def async_update(self):
+        if self._source == CLOUD_SIGNAL_STRENGTH_SOURCE:
+            self._attr_native_value = (
+                await self._device.async_get_cloud_signal_strength()
+            )
+            return
+        await super().async_update()
 
     @property
     def device_class(self):
@@ -66,6 +91,9 @@ class TuyaLocalSensor(TuyaLocalEntity, SensorEntity):
     @property
     def state_class(self):
         """Return the state class of this entity"""
+        if self._source == CLOUD_SIGNAL_STRENGTH_SOURCE:
+            return self._config.state_class
+
         sclass = self._sensor_dps.state_class
         if sclass in STATE_CLASSES:
             return sclass
@@ -73,11 +101,16 @@ class TuyaLocalSensor(TuyaLocalEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the value reported by the sensor"""
+        if self._source == CLOUD_SIGNAL_STRENGTH_SOURCE:
+            return self._attr_native_value
         return self._sensor_dps.get_value(self._device)
 
     @property
     def native_unit_of_measurement(self):
         """Return the unit for the sensor"""
+        if self._source == CLOUD_SIGNAL_STRENGTH_SOURCE:
+            return unit_from_ascii(self._config.unit)
+
         if self._unit_dps is None:
             unit = self._sensor_dps.unit
         else:
@@ -88,11 +121,16 @@ class TuyaLocalSensor(TuyaLocalEntity, SensorEntity):
     @property
     def native_precision(self):
         """Return the precision for the sensor"""
+        if self._source == CLOUD_SIGNAL_STRENGTH_SOURCE:
+            return None
         return self._sensor_dps.precision(self._device)
 
     @property
     def suggested_display_precision(self):
         """Return the suggested display precision for the sensor"""
+        if self._source == CLOUD_SIGNAL_STRENGTH_SOURCE:
+            return None
+
         precision = self._sensor_dps.suggested_display_precision
         # if not explicitly defined, get based on scale
         # this is in line with older HA default behavior, and avoids
@@ -105,6 +143,9 @@ class TuyaLocalSensor(TuyaLocalEntity, SensorEntity):
     @property
     def options(self):
         """Return a set of possible options."""
+        if self._source == CLOUD_SIGNAL_STRENGTH_SOURCE:
+            return None
+
         # if mappings are all integers,  they are not options to HA
         values = self._sensor_dps.values(self._device)
         if values:

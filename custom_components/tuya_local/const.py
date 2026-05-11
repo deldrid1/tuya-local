@@ -17,6 +17,9 @@ CONF_TERMINAL_ID = "terminal_id"
 CONF_TOKEN_INFO = "token_info"  # noqa: S105
 CONF_USER_CODE = "user_code"
 CONF_USERNAME = "username"
+CONF_CLOUD_API_KEY = "cloud_api_key"
+CONF_CLOUD_API_SECRET = "cloud_api_secret"
+CONF_CLOUD_API_REGION = "cloud_api_region"
 
 TUYA_CLIENT_ID = "HA_3y9q4ak7g4ephrvke"
 TUYA_SCHEMA = "haauthorize"

@@ -4,6 +4,7 @@ API for Tuya Local devices.
 
 import asyncio
 import logging
+import re
 from asyncio.exceptions import CancelledError
 from threading import Lock
 from time import time
@@ -19,6 +20,9 @@ from homeassistant.core import HomeAssistant, callback
 
 from .const import (
     API_PROTOCOL_VERSIONS,
+    CONF_CLOUD_API_KEY,
+    CONF_CLOUD_API_REGION,
+    CONF_CLOUD_API_SECRET,
     CONF_DEVICE_CID,
     CONF_DEVICE_ID,
     CONF_LOCAL_KEY,
@@ -53,6 +57,9 @@ class TuyaLocalDevice(object):
         poll_only=False,
         manufacturer=None,
         model=None,
+        cloud_api_key=None,
+        cloud_api_secret=None,
+        cloud_api_region=None,
     ):
         """
         Represents a Tuya-based device.
@@ -68,10 +75,21 @@ class TuyaLocalDevice(object):
             poll_only (bool): True if the device should be polled only.
             manufacturer (str | None): The device manufacturer, if known.
             model (str | None): The device model, if known.
+            cloud_api_key (str | None): Tuya IoT API access ID for cloud-only
+              diagnostics.
+            cloud_api_secret (str | None): Tuya IoT API secret for cloud-only
+              diagnostics.
+            cloud_api_region (str | None): Tuya IoT API region for cloud-only
+              diagnostics.
         """
         self._name = name
         self._manufacturer = manufacturer
         self._model = model
+        self._cloud_api_key = cloud_api_key
+        self._cloud_api_secret = cloud_api_secret
+        self._cloud_api_region = cloud_api_region or "us"
+        self._cloud_signal_strength = None
+        self._cloud_signal_strength_updated_at = 0
         self._children = []
         self._force_dps = []
         self._product_ids = []
@@ -150,6 +168,7 @@ class TuyaLocalDevice(object):
         self._FAKE_IT_TIMEOUT = 5
         self._CACHE_TIMEOUT = 30
         self._HEARTBEAT_INTERVAL = 10
+        self._CLOUD_SIGNAL_CACHE_TIMEOUT = 300
         # More attempts are needed in auto mode so we can cycle through all
         # the possibilities a couple of times
         self._AUTO_CONNECTION_ATTEMPTS = len(API_PROTOCOL_VERSIONS) * 2 + 1
@@ -508,6 +527,77 @@ class TuyaLocalDevice(object):
     async def async_set_property(self, dps_id, value):
         await self.async_set_properties({dps_id: value})
 
+    @property
+    def has_cloud_api_credentials(self):
+        """Return True when optional Tuya cloud API credentials are configured."""
+        return bool(self._cloud_api_key and self._cloud_api_secret)
+
+    async def async_get_cloud_signal_strength(self):
+        """Fetch Wi-Fi signal strength from Tuya cloud device semaphore logs."""
+        if not self.has_cloud_api_credentials:
+            _LOGGER.debug(
+                "%s cloud signal strength unavailable: API credentials not configured",
+                self.name,
+            )
+            return None
+
+        now = time()
+        if (
+            now - self._cloud_signal_strength_updated_at
+            < self._CLOUD_SIGNAL_CACHE_TIMEOUT
+        ):
+            return self._cloud_signal_strength
+
+        try:
+            signal_strength = await self._hass.async_add_executor_job(
+                self._get_cloud_signal_strength,
+            )
+        except Exception as err:
+            _LOGGER.debug(
+                "%s cloud signal strength query failed: %s",
+                self.name,
+                err,
+            )
+            signal_strength = None
+
+        if signal_strength is not None:
+            self._cloud_signal_strength = signal_strength
+            self._cloud_signal_strength_updated_at = now
+        return self._cloud_signal_strength
+
+    def _get_cloud_signal_strength(self):
+        """Return the latest RSSI value from Tuya cloud device semaphore logs."""
+        cloud = tinytuya.Cloud(
+            apiRegion=self._cloud_api_region,
+            apiKey=self._cloud_api_key,
+            apiSecret=self._cloud_api_secret,
+            apiDeviceID=self._api.id,
+        )
+        response = cloud.getdevicelog(
+            self._api.id,
+            start=-7,
+            evtype=8,
+            size=1,
+            max_fetches=1,
+        )
+        if not response or not response.get("success"):
+            _LOGGER.debug(
+                "%s cloud signal strength log request was not successful: %s %s",
+                self.name,
+                response.get("code") if response else "no_response",
+                response.get("msg") if response else "",
+            )
+            return None
+
+        result = response.get("result", {})
+        logs = result.get("logs", []) if isinstance(result, dict) else []
+        for log in logs:
+            event_value = str(log.get("event_value", ""))
+            match = re.search(r"-?\d+", event_value)
+            if match:
+                return int(match.group(0))
+        return None
+
     def anticipate_property_value(self, dps_id, value):
         """
         Update a value in the cached state only. This is good for when you
@@ -789,6 +879,9 @@ def setup_device(hass: HomeAssistant, config: dict):
         config[CONF_POLL_ONLY],
         manufacturer=config.get(CONF_MANUFACTURER),
         model=config.get(CONF_MODEL),
+        cloud_api_key=config.get(CONF_CLOUD_API_KEY),
+        cloud_api_secret=config.get(CONF_CLOUD_API_SECRET),
+        cloud_api_region=config.get(CONF_CLOUD_API_REGION),
     )
     hass.data[DOMAIN][get_device_id(config)] = {
         "device": device,

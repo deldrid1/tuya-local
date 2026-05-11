@@ -314,6 +314,21 @@ class TuyaEntityConfig:
         return self._config["entity"]
 
     @property
+    def source(self):
+        """The non-DP source for this entity, if it uses one."""
+        return self._config.get("source")
+
+    @property
+    def state_class(self):
+        """The state class of this entity."""
+        return self._config.get("state_class")
+
+    @property
+    def unit(self):
+        """The unit of measurement for non-DP backed entities."""
+        return self._config.get("unit")
+
+    @property
     def config_id(self):
         """The identifier for this entity in the config."""
         own_name = self._config.get("name")
@@ -355,7 +370,7 @@ class TuyaEntityConfig:
 
     def dps(self):
         """Iterate through the list of dps for this entity."""
-        for d in self._config["dps"]:
+        for d in self._config.get("dps", []):
             yield TuyaDpsConfig(self, d)
 
     def find_dps(self, name):

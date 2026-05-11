@@ -75,7 +75,7 @@ entities:
         optional: true
         class: measurement
         mapping:
-          - constraint: temperature_unit
+          - constraint: unit
             conditions:
               - dps_val: f
                 value_redirect: temp_current_f
@@ -106,7 +106,7 @@ entities:
           min: 0
           max: 90
         mapping:
-          - constraint: temperature_unit
+          - constraint: unit
             conditions:
               - dps_val: f
                 value_redirect: temp_set_f
@@ -145,7 +145,7 @@ entities:
           min: 0
           max: 90
         mapping:
-          - constraint: temperature_unit
+          - constraint: unit
             conditions:
               - dps_val: f
                 value_redirect: temp_set_f
@@ -191,6 +191,14 @@ entities:
           max: 60
         mapping:
           - step: 5
+  - entity: sensor
+    name: WiFi signal strength
+    class: signal_strength
+    category: diagnostic
+    hidden: true
+    source: cloud_signal_strength
+    unit: dBm
+    state_class: measurement
   - entity: sensor
     translation_key: time_remaining
     class: duration

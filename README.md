@@ -135,6 +135,10 @@ The cloud assisted choice will guide you through authenticating, choosing a devi
 
 The Tuya authentication token expires after a small number of hours and so is not saved by the integration. But, as long as you don't restart Home Assistant, this allows you to add multiple devices one after another only needing to authenticate once for the first one.
 
+### Backyard Discovery sauna diagnostic signal strength
+
+The Backyard Discovery sauna exposes control and temperature datapoints locally, but its Wi-Fi RSSI is only available in Tuya cloud device semaphore logs. This fork adds a disabled-by-default diagnostic sensor named `WiFi signal strength` for that device type. Enable it only if you want RSSI history, and configure optional Tuya IoT API fields on the config entry (`cloud_api_key`, `cloud_api_secret`, and `cloud_api_region`, usually `us`) so the sensor can read the latest semaphore log. Local sauna control does not depend on these cloud fields.
+
 ### Stage One
 
 The first stage of configuration is to provide the information needed to connect to the device.
