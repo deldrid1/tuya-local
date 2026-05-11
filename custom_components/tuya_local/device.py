@@ -90,6 +90,7 @@ class TuyaLocalDevice(object):
         self._cloud_api_region = cloud_api_region or "us"
         self._cloud_signal_strength = None
         self._cloud_signal_strength_updated_at = 0
+        self._local_values = {}
         self._children = []
         self._force_dps = []
         self._product_ids = []
@@ -526,6 +527,14 @@ class TuyaLocalDevice(object):
 
     async def async_set_property(self, dps_id, value):
         await self.async_set_properties({dps_id: value})
+
+    def get_local_value(self, key, default=None):
+        """Return a non-DP local helper value."""
+        return self._local_values.get(key, default)
+
+    def set_local_value(self, key, value):
+        """Store a non-DP local helper value."""
+        self._local_values[key] = value
 
     @property
     def has_cloud_api_credentials(self):

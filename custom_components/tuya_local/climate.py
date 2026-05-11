@@ -96,6 +96,7 @@ class TuyaLocalClimate(TuyaLocalEntity, ClimateEntity):
         self._unit_dps = dps_map.pop("temperature_unit", None)
         self._mintemp_dps = dps_map.pop("min_temperature", None)
         self._maxtemp_dps = dps_map.pop("max_temperature", None)
+        self._heat_duration_source = config.heat_duration_source
 
         self._init_end(dps_map)
 
@@ -128,6 +129,12 @@ class TuyaLocalClimate(TuyaLocalEntity, ClimateEntity):
         if HVACMode.OFF in self.hvac_modes:
             self._attr_supported_features |= ClimateEntityFeature.TURN_OFF
         if self._hvac_mode_dps and self._hvac_mode_dps.type is bool:
+            self._attr_supported_features |= ClimateEntityFeature.TURN_ON
+        elif (
+            self._heat_duration_source
+            and self._hvac_mode_dps
+            and HVACMode.HEAT in self.hvac_modes
+        ):
             self._attr_supported_features |= ClimateEntityFeature.TURN_ON
 
     @property
@@ -398,6 +405,10 @@ class TuyaLocalClimate(TuyaLocalEntity, ClimateEntity):
             self._config.config_id,
             hvac_mode,
         )
+        if self._heat_duration_source and hvac_mode == HVACMode.HEAT:
+            duration = self._device.get_local_value(self._heat_duration_source, 60)
+            await self._hvac_mode_dps.async_set_value(self._device, duration)
+            return
         await self._hvac_mode_dps.async_set_value(self._device, hvac_mode)
 
     async def async_turn_on(self):
@@ -407,6 +418,8 @@ class TuyaLocalClimate(TuyaLocalEntity, ClimateEntity):
         if self._hvac_mode_dps and self._hvac_mode_dps.type is bool:
             _LOGGER.info("%s turning on", self._config.config_id)
             await self._device.async_set_property(self._hvac_mode_dps.id, True)
+        elif self._heat_duration_source and self._hvac_mode_dps:
+            await self.async_set_hvac_mode(HVACMode.HEAT)
         else:
             await super().async_turn_on()
 
@@ -420,6 +433,8 @@ class TuyaLocalClimate(TuyaLocalEntity, ClimateEntity):
                 self._hvac_mode_dps.id,
                 False,
             )
+        elif self._heat_duration_source and self._hvac_mode_dps:
+            await self.async_set_hvac_mode(HVACMode.OFF)
         else:
             await super().async_turn_off()
 

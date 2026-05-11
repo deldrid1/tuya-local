@@ -329,6 +329,26 @@ class TuyaEntityConfig:
         return self._config.get("unit")
 
     @property
+    def default_value(self):
+        """The default value for non-DP backed entities."""
+        return self._config.get("default")
+
+    @property
+    def range(self):
+        """The range for non-DP backed entities."""
+        return self._config.get("range")
+
+    @property
+    def step(self):
+        """The step for non-DP backed entities."""
+        return self._config.get("step")
+
+    @property
+    def heat_duration_source(self):
+        """The local value source to use when a climate entity starts heating."""
+        return self._config.get("heat_duration_source")
+
+    @property
     def config_id(self):
         """The identifier for this entity in the config."""
         own_name = self._config.get("name")

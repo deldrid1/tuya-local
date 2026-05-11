@@ -6,15 +6,30 @@ products:
 entities:
   - entity: climate
     translation_only_key: heater
+    heat_duration_source: default_heat_duration
     dps:
-      - id: 20
+      - id: 26
         name: hvac_mode
-        type: boolean
+        type: integer
+        unit: min
+        range:
+          min: 0
+          max: 60
         mapping:
-          - dps_val: false
+          - dps_val: 0
             value: "off"
-          - dps_val: true
+          - dps_val: 60
             value: heat
+          - value: heat
+            step: 5
+      - id: 101
+        name: hvac_action
+        type: integer
+        unit: min
+        mapping:
+          - dps_val: 0
+            value: "off"
+          - value: heating
       - id: 102
         name: temperature
         type: integer
@@ -64,6 +79,13 @@ entities:
         type: integer
         unit: F
         hidden: true
+  - entity: switch
+    name: Controls
+    icon: "mdi:power"
+    dps:
+      - id: 20
+        name: switch
+        type: boolean
   - entity: sensor
     name: Current temperature
     class: temperature
@@ -171,16 +193,10 @@ entities:
           max: 194
         mapping:
           - step: 9
-  - entity: light
-    translation_key: light
-    dps:
-      - id: 108
-        name: switch
-        type: boolean
   - entity: number
     translation_key: timer
     class: duration
-    category: config
+    mode: slider
     dps:
       - id: 26
         name: value
@@ -191,6 +207,17 @@ entities:
           max: 60
         mapping:
           - step: 5
+  - entity: number
+    name: Default heat timer
+    class: duration
+    category: config
+    source: default_heat_duration
+    unit: min
+    default: 60
+    range:
+      min: 5
+      max: 60
+    step: 5
   - entity: sensor
     name: WiFi signal strength
     class: signal_strength
