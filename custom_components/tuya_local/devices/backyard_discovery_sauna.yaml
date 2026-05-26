@@ -114,46 +114,6 @@ entities:
         type: integer
         unit: F
         hidden: true
-  - entity: sensor
-    name: Setpoint temperature
-    class: temperature
-    dps:
-      - id: 102
-        name: sensor
-        type: integer
-        unit: C
-        optional: true
-        class: measurement
-        range:
-          min: 0
-          max: 90
-        mapping:
-          - constraint: unit
-            conditions:
-              - dps_val: f
-                value_redirect: temp_set_f
-                range:
-                  min: 32
-                  max: 194
-                step: 9
-      - id: 104
-        name: unit
-        type: string
-        mapping:
-          - dps_val: c
-            value: C
-          - dps_val: f
-            value: F
-      - id: 106
-        name: temp_set_f
-        type: integer
-        unit: F
-        hidden: true
-        range:
-          min: 32
-          max: 194
-        mapping:
-          - step: 9
   - entity: number
     name: Setpoint temperature
     class: temperature
